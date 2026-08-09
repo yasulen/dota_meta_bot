@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HighMMR Dota Tracker</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0e13;
+            --card-bg: #141921;
+            --accent-green: #00e676;
+            --accent-orange: #ff9800;
+            --text-main: #ffffff;
+            --text-muted: #7a8b9e;
+            --border-color: #232d3b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        h1 { font-size: 20px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+        .role-filters {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            margin-top: 12px;
+            padding-bottom: 4px;
+        }
+
+        .role-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .role-btn.active {
+            background: #1e293b;
+            color: var(--accent-orange);
+            border-color: var(--accent-orange);
+            font-weight: 700;
+        }
+
+        .role-section { margin-top: 16px; }
+
+        .hero-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .hero-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .hero-info { display: flex; align-items: center; gap: 12px; }
+        .hero-rank { font-weight: 700; color: #4b5563; font-size: 14px; width: 14px; }
+        .hero-img { width: 50px; height: 28px; border-radius: 4px; object-fit: cover; background: #000; }
+        .hero-name { font-weight: 600; font-size: 15px; }
+
+        .hero-stats { text-align: right; }
+        .winrate { color: var(--accent-green); font-weight: 700; font-size: 14px; }
+        .matches { color: var(--text-muted); font-size: 12px; }
+
+        #detail-screen { display: none; }
+        .section-title { font-size: 12px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; font-weight: 700; }
+        .items-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+        .item-icon { width: 46px; height: 34px; border-radius: 4px; background: #000; border: 1px solid var(--border-color); object-fit: cover; }
+
+        .talents-container { background: var(--card-bg); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color); margin-top: 8px; }
+        .talent-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); font-size: 11px; }
+        .talent-row:last-child { border-bottom: none; }
+        .talent-side { width: 42%; line-height: 1.3; }
+        .talent-left { text-align: right; }
+        .talent-right { text-align: left; }
+        .talent-lvl { background: #2a3545; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #ffb74d; font-size: 12px; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+
+    <div id="main-screen">
+        <h1>Герои Меты</h1>
+        <div class="subtitle">High MMR • Топ-5 по позициям</div>
+        
+        <div class="role-filters">
+            <button class="role-btn active" onclick="filterRole('POSITION_1', this)">КЕРРИ</button>
+            <button class="role-btn" onclick="filterRole('POSITION_2', this)">МИД</button>
+            <button class="role-btn" onclick="filterRole('POSITION_3', this)">ОФФЛЕЙН</button>
+            <button class="role-btn" onclick="filterRole('POSITION_4', this)">ЧЕТВЕРКА</button>
+            <button class="role-btn" onclick="filterRole('POSITION_5', this)">ПЯТЕРКА</button>
+        </div>
+
+        <div id="roles-container" class="role-section">Загрузка данных...</div>
+    </div>
+
+    <div id="detail-screen">
+        <div class="header">
+            <button class="back-btn" onclick="showMainScreen()">← Назад</button>
+            <div>
+                <h1 id="hero-detail-name">Hero</h1>
+                <div id="hero-detail-stats" class="subtitle"></div>
+            </div>
+        </div>
+
+        <div class="section-title">Основные предметы</div>
+        <div id="core-items" class="items-grid">Загрузка сборки...</div>
+
+        <div class="section-title">Дерево талантов</div>
+        <div id="talents-list" class="talents-container"></div>
+    </div>
+
+    <script>
+        const BASE_URL = "https://dota-meta-api.onrender.com";
+
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+
+        let rolesData = {};
+        let currentRole = 'POSITION_1';
+
+        async function loadMetaHeroes() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/meta`);
+                const data = await res.json();
+
+                if (data.status === 'ok' && data.roles) {
+                    rolesData = data.roles;
+                    renderRoleView(currentRole);
+                } else {
+                    document.getElementById('roles-container').innerText = "Ошибка формата данных.";
+                }
+            } catch (err) {
+                document.getElementById('roles-container').innerText = "Ошибка соединения с бэкендом.";
+            }
+        }
+
+        function filterRole(roleKey, btnElement) {
+            currentRole = roleKey;
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderRoleView(roleKey);
+        }
+
+        function renderRoleView(roleKey) {
+            const container = document.getElementById('roles-container');
+            const heroes = rolesData[roleKey] || [];
+
+            if (heroes.length === 0) {
+                container.innerHTML = "<div>Нет данных по выбранной роли.</div>";
+                return;
+            }
+
+            let heroesHtml = '';
+            heroes.forEach((h, idx) => {
+                const imgUrl = `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/${h.shortName}.png`;
+                heroesHtml += `
+                    <div class="hero-card" onclick="showHeroDetail(${h.id}, '${h.name}', '${h.winrate}', ${h.matches})">
+                        <div class="hero-info">
+                            <span class="hero-rank">${idx + 1}</span>
+                            <img class="hero-img" src="${imgUrl}" alt="${h.name}" />
+                            <div class="hero-name">${h.name}</div>
+                        </div>
+                        <div class="hero-stats">
+                            <div class="winrate">${h.winrate}%</div>
+                            <div class="matches">${h.matches} игр</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `<div class="hero-list">${heroesHtml}</div>`;
+        }
+
+        async function showHeroDetail(heroId, heroName, winrate, matches) {
+            document.getElementById('main-screen').style.display = 'none';
+            document.getElementById('detail-screen').style.display = 'block';
+
+            document.getElementById('hero-detail-name').innerText = heroName;
+            document.getElementById('hero-detail-stats').innerText = `${winrate}% Win Rate • ${matches} матчей`;
+
+            const itemsContainer = document.getElementById('core-items');
+            itemsContainer.innerText = 'Загрузка предметов...';
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/hero/${heroId}`);
+                const data = await res.json();
+                
+                itemsContainer.innerHTML = '';
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(itemName => {
+                        const itemImg = document.createElement('img');
+                        itemImg.className = 'item-icon';
+                        itemImg.src = `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items/${itemName}.png`;
+                        itemsContainer.appendChild(itemImg);
+                    });
+                } else {
+                    itemsContainer.innerText = 'Нет данных по предметам';
+                }
+            } catch (e) {
+                itemsContainer.innerText = 'Ошибка загрузки предметов';
+            }
+
+            const talentsContainer = document.getElementById('talents-list');
+            talentsContainer.innerHTML = `
+                <div class="talent-row"><span class="talent-side talent-left">+2.5 сек. действия способностей</span><div class="talent-lvl">25</div><span class="talent-side talent-right">+25% Сопротивления магии</span></div>
+                <div class="talent-row"><span class="talent-side talent-left">+120 к урону</span><div class="talent-lvl">20</div><span class="talent-side talent-right">-4 сек. перезарядки</span></div>
+                <div class="talent-row"><span class="talent-side talent-left">+350 к здоровью</span><div class="talent-lvl">15</div><span class="talent-side talent-right">+12% к скорости передв.</span></div>
+                <div class="talent-row"><span class="talent-side talent-left">+15 к урону / +2 брони</span><div class="talent-lvl">10</div><span class="talent-side talent-right">+1.75 к манарегену</span></div>
+            `;
+        }
+
+        function showMainScreen() {
+            document.getElementById('detail-screen').style.display = 'none';
+            document.getElementById('main-screen').style.display = 'block';
+        }
+
+        loadMetaHeroes();
+    </script>
+</body>
+</html>
