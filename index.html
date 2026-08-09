@@ -173,7 +173,7 @@
             try {
                 const res = await fetch(`${BASE_URL}/api/hero/${heroId}`);
                 const data = await res.json();
-                
+
                 // Отрисовка предметов
                 itemsContainer.innerHTML = '';
                 if (data.items && data.items.length > 0) {
