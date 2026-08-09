@@ -25,66 +25,18 @@
             box-sizing: border-box;
         }
 
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .back-btn {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
+        .header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .back-btn { background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 6px; cursor: pointer; }
         h1 { font-size: 20px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
         .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 
-        .role-filters {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            margin-top: 12px;
-            padding-bottom: 4px;
-        }
-
-        .role-btn {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .role-btn.active {
-            background: #1e293b;
-            color: var(--accent-orange);
-            border-color: var(--accent-orange);
-            font-weight: 700;
-        }
+        .role-filters { display: flex; gap: 6px; overflow-x: auto; margin-top: 12px; padding-bottom: 4px; }
+        .role-btn { background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-muted); padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .role-btn.active { background: #1e293b; color: var(--accent-orange); border-color: var(--accent-orange); font-weight: 700; }
 
         .role-section { margin-top: 16px; }
-
         .hero-list { display: flex; flex-direction: column; gap: 8px; }
-
-        .hero-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-        }
-
+        .hero-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
         .hero-info { display: flex; align-items: center; gap: 12px; }
         .hero-rank { font-weight: 700; color: #4b5563; font-size: 14px; width: 14px; }
         .hero-img { width: 50px; height: 28px; border-radius: 4px; object-fit: cover; background: #000; }
@@ -96,7 +48,7 @@
 
         #detail-screen { display: none; }
         .section-title { font-size: 12px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; font-weight: 700; }
-        .items-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+        .items-grid { display: flex; gap: 8px; flex-wrap: wrap; min-height: 34px; }
         .item-icon { width: 46px; height: 34px; border-radius: 4px; background: #000; border: 1px solid var(--border-color); object-fit: cover; }
 
         .talents-container { background: var(--card-bg); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color); margin-top: 8px; }
@@ -135,10 +87,10 @@
         </div>
 
         <div class="section-title">Основные предметы</div>
-        <div id="core-items" class="items-grid">Загрузка сборки...</div>
+        <div id="core-items" class="items-grid">Загрузка предметов...</div>
 
         <div class="section-title">Дерево талантов</div>
-        <div id="talents-list" class="talents-container"></div>
+        <div id="talents-list" class="talents-container">Загрузка талантов...</div>
     </div>
 
     <script>
@@ -213,12 +165,16 @@
             document.getElementById('hero-detail-stats').innerText = `${winrate}% Win Rate • ${matches} матчей`;
 
             const itemsContainer = document.getElementById('core-items');
+            const talentsContainer = document.getElementById('talents-list');
+            
             itemsContainer.innerText = 'Загрузка предметов...';
+            talentsContainer.innerText = 'Загрузка талантов...';
 
             try {
                 const res = await fetch(`${BASE_URL}/api/hero/${heroId}`);
                 const data = await res.json();
                 
+                // Отрисовка предметов
                 itemsContainer.innerHTML = '';
                 if (data.items && data.items.length > 0) {
                     data.items.forEach(itemName => {
@@ -230,17 +186,28 @@
                 } else {
                     itemsContainer.innerText = 'Нет данных по предметам';
                 }
+
+                // Отрисовка талантов
+                talentsContainer.innerHTML = '';
+                if (data.talents && data.talents.length > 0) {
+                    data.talents.forEach(t => {
+                        const row = document.createElement('div');
+                        row.className = 'talent-row';
+                        row.innerHTML = `
+                            <div class="talent-side talent-left">${t.left}</div>
+                            <div class="talent-lvl">${t.lvl}</div>
+                            <div class="talent-side talent-right">${t.right}</div>
+                        `;
+                        talentsContainer.appendChild(row);
+                    });
+                } else {
+                    talentsContainer.innerText = 'Нет данных по талантам';
+                }
+
             } catch (e) {
                 itemsContainer.innerText = 'Ошибка загрузки предметов';
+                talentsContainer.innerText = 'Ошибка загрузки талантов';
             }
-
-            const talentsContainer = document.getElementById('talents-list');
-            talentsContainer.innerHTML = `
-                <div class="talent-row"><span class="talent-side talent-left">+2.5 сек. действия способностей</span><div class="talent-lvl">25</div><span class="talent-side talent-right">+25% Сопротивления магии</span></div>
-                <div class="talent-row"><span class="talent-side talent-left">+120 к урону</span><div class="talent-lvl">20</div><span class="talent-side talent-right">-4 сек. перезарядки</span></div>
-                <div class="talent-row"><span class="talent-side talent-left">+350 к здоровью</span><div class="talent-lvl">15</div><span class="talent-side talent-right">+12% к скорости передв.</span></div>
-                <div class="talent-row"><span class="talent-side talent-left">+15 к урону / +2 брони</span><div class="talent-lvl">10</div><span class="talent-side talent-right">+1.75 к манарегену</span></div>
-            `;
         }
 
         function showMainScreen() {
